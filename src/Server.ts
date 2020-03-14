@@ -5,6 +5,8 @@ import cors from 'cors';
 import '@tsed/swagger';
 import { parse } from 'qs';
 
+import ErrorHandler from './middleware/ErrorMiddleware';
+
 const basePath = '/';
 
 @ServerSettings({
@@ -32,6 +34,7 @@ export default class Server extends ServerLoader {
     this
       .use(cors())
       .use(bodyParser.json())
-      .use(bodyParser.urlencoded({ extended: true }));
+      .use(bodyParser.urlencoded({ extended: true }))
+      .use(ErrorHandler);
   }
 }
