@@ -1,4 +1,4 @@
-# typescript-template
+# tsed-template
 <!--
 Status Badges:
 - [ ] Codecov
