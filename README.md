@@ -12,6 +12,7 @@ Template for creating a TS server using Ts.ED.
 
 ## Usage
 <!-- Documentation on how to use this project. -->
+Documentation for this API is available via Swagger.  To view, start the server (see [Getting Started](#getting-started)) then navigate to the [docs page](http://localhost:3000/api-docs).
 
 ## Testing
 To run the tests for this project, just execute
