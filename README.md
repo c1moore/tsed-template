@@ -22,7 +22,7 @@ npm test
 ```
 
 <!-- Make sure to update the link to point to the actual codecov report. -->
-To see a coverage report, check at the [Codecov report](codecov.io).
+To see a coverage report, look at the [Codecov report](codecov.io).
 
 ## Build & Deployment
 <!-- How is this project built and deployed.  If using tools, add links to this specific project. -->
