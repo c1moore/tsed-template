@@ -1,5 +1,5 @@
 import { Controller, Get } from '@tsed/common';
-import { Summary, Description, Returns } from '@tsed/swagger';
+import { Summary, Description, Returns } from '@tsed/schema';
 
 import HealthService from '../services/HealthService';
 import Health from '../models/Health';
@@ -15,7 +15,7 @@ export default class HealthCtrl {
   @Get()
   @Summary('Returns the health of the system.')
   @Description('Returns the health of the system.')
-  @Returns({ code: 200 })
+  @Returns(200)
   async getHealth(): Promise<Health> {
     return this.healthService.loadHealthStatus();
   }
