@@ -1,39 +1,49 @@
-import { NextFunction as ExpressNext, Response as ExpressResponse } from 'express';
 import {
-  MiddlewareError, IMiddlewareError, Response, Next, Err, $log,
+  Catch,
+  ExceptionFilterMethods,
+  PlatformContext,
+  PlatformResponse,
 } from '@tsed/common';
-import { Exception } from 'ts-httpexceptions';
-import { inspect } from 'util';
+import { Exception } from '@tsed/exceptions';
 
 import ErrorPayload from '../models/ErrorPayload';
 
-@MiddlewareError()
-export default class ErrorMiddleware implements IMiddlewareError {
-  use(
-        @Err() error: any,
-        @Response() res: ExpressResponse,
-        @Next() next: ExpressNext,
+@Catch(Error)
+export default class ErrorMiddleware implements ExceptionFilterMethods {
+  catch(
+    error: (Error | Exception) & { status?: number },
+    ctx: PlatformContext,
   ): void {
-    if (res.headersSent) {
-      return next(error);
+    const { request: req, response: res, logger: $log } = ctx;
+
+    $log.error({
+      message: 'Error processing request.',
+      url: req.url,
+      method: req.method,
+      status: error.status,
+      errorMessage: error.message,
+      errorStackTrace: error.stack,
+      originalError: (error as Exception).origin,
+    });
+
+    if (res.isHeadersSent()) {
+      return;
     }
 
     if (error instanceof Exception) {
       return this.handleError(res, error.status, { message: error.message });
     }
 
-    if (typeof error === 'string') {
-      return this.handleError(res, 404, { message: error });
-    }
-
-    this.handleError(res, error.status || 500, {
+    this.handleError(res, error.status ?? 500, {
       message: error.message || 'Internal Error',
     });
   }
 
-  private handleError(res: ExpressResponse, status: number, payload: ErrorPayload): void {
-    $log.error(inspect(payload));
-
-    res.status(status).json(payload);
+  private handleError(
+    res: PlatformResponse,
+    status: number,
+    payload: ErrorPayload,
+  ): void {
+    res.status(status).body(payload);
   }
 }
