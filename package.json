@@ -6,11 +6,11 @@
   "scripts": {
     "clean": "rm -rf ./dist",
     "build": "npm run clean && ./node_modules/.bin/tsc",
-    "start": "ts-node src/index.ts",
+    "start": "node -r ts-node/register -r dotenv/config src/index.ts",
     "start:watch": "nodemon --watch src --ext ts --delay 3 --exec npm start",
     "test": "NODE_ENV=test nyc mocha",
     "test:watch": "nodemon -e js,ts --watch src --watch test --exec \"NODE_ENV=test mocha\"",
-    "lint": "npx eslint src/**/*.ts src/*.ts",
+    "lint": "eslint src/**/*.ts src/*.ts",
     "lint:fix": "npm run lint -- --fix"
   },
   "repository": {
@@ -50,6 +50,7 @@
     "@typescript-eslint/parser": "^4.26.1",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
+    "dotenv": "^10.0.0",
     "eslint": "^7.28.0",
     "eslint-config-airbnb-base": "^14.2.1",
     "eslint-plugin-import": "^2.23.4",
@@ -81,12 +82,15 @@
     "excludeAfterRemap": false
   },
   "dependencies": {
+    "@tsed/ajv": "^6.59.0",
     "@tsed/common": "^6.56.0",
     "@tsed/core": "^6.56.0",
     "@tsed/di": "^6.56.0",
     "@tsed/exceptions": "^6.56.0",
+    "@tsed/platform-express": "^6.59.0",
     "@tsed/schema": "^6.56.0",
     "@tsed/swagger": "^6.56.0",
+    "ajv": "^8.6.0",
     "body-parser": "^1.19.0",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",

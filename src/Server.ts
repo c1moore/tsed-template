@@ -9,8 +9,6 @@ import { Application } from 'express';
 import '@tsed/swagger';
 import '@tsed/ajv';
 
-import ErrorHandler from './middleware/ErrorMiddleware';
-
 const basePath = '/';
 
 @Configuration({
@@ -41,7 +39,6 @@ export default class Server {
     this.app
       .use(cors())
       .use(bodyParser.json())
-      .use(bodyParser.urlencoded({ extended: true }))
-      .use(ErrorHandler);
+      .use(bodyParser.urlencoded({ extended: true }));
   }
 }

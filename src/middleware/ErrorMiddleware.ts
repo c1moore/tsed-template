@@ -6,8 +6,6 @@ import {
 } from '@tsed/common';
 import { Exception } from '@tsed/exceptions';
 
-import ErrorPayload from '../models/ErrorPayload';
-
 @Catch(Error)
 export default class ErrorMiddleware implements ExceptionFilterMethods {
   catch(
@@ -42,7 +40,9 @@ export default class ErrorMiddleware implements ExceptionFilterMethods {
   private handleError(
     res: PlatformResponse,
     status: number,
-    payload: ErrorPayload,
+    payload: {
+      message: string;
+    },
   ): void {
     res.status(status).body(payload);
   }
