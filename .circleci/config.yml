@@ -3,11 +3,12 @@ version: 2.1
 references:
   container_config: &container_config
     docker:
-      - image: circleci/node:10
+      - image: cimg/node:lts
   restore_dep_cache: &restore_dep_cache
     restore_cache:
       keys:
         - v2-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-dependencies-{{ .Branch }}-{{ checksum "package.json" }}
+
   filter_any: &filter_any
     filters:
       tags:
@@ -17,7 +18,54 @@ references:
       branches:
         ignore: /.*/
       tags:
-        only: /^\d+\.\d+\.\d+.*/
+        only: /^v\d+\.\d+\.\d+.*$/
+  filter_prod_tags: &filter_prod_tags
+    filters:
+      branches:
+        ignore: /.*/
+      tags:
+        only: /^v\d+\.\d+\.\d+$/
+  filter_nonprod_infra_tags: &filter_nonprod_infra_tags
+    filters:
+      branches:
+        ignore: /.*/
+      tags:
+        only: /^infra-v\d+\.\d+\.\d+-.+$/
+  filter_prod_infra_tags: &filter_prod_infra_tags
+    filters:
+      branches:
+        ignore: /.*/
+      tags:
+        only: /^infra-v\d+\.\d+\.\d+$/
+
+  matches_non_prod_release: &matches_non_prod_release
+    pattern: "^v\\d+\\.\\d+\\.\\d+.*$"
+    value: << pipeline.git.tag >>
+  matches_prod_release: &matches_prod_release
+    pattern: "^v\\d+\\.\\d+\\.\\d+$"
+    value: << pipeline.git.tag >>
+  matches_non_prod_infra_release: &matches_non_prod_infra_release
+    pattern: "^infra-v\\d+\\.\\d+\\.\\d+-.+$"
+    value: << pipeline.git.tag >>
+  matches_prod_infra_release: &matches_prod_infra_release
+    pattern: "^infra-v\\d+\\.\\d+\\.\\d+$"
+    value: << pipeline.git.tag >>
+
+  dependencies_job: &dependencies_job
+    <<: *filter_any
+  lint_job: &lint_job
+    requires:
+      - dependencies
+    <<: *filter_any
+  test_job: &test_job
+    requires:
+      - dependencies
+    <<: *filter_any
+  build_job: &build_job
+    requires:
+      - lint
+      - test
+    <<: *filter_any
 
 commands:
   publish:
@@ -27,11 +75,11 @@ commands:
         type: string
     steps:
       - run:
-          name: Publish
-          command: echo "Make sure to update this command to publish your server appropriately."
+          name: "Todo"
+          command: echo "Update this to fit where you deploy your image."
 
 orbs:
-  codecov: codecov/codecov@1.0.5
+  pulumi: pulumi/pulumi@2.0.0
 
 jobs:
   dependencies:
@@ -59,15 +107,30 @@ jobs:
           name: Lint
           command: npm run lint
   test:
-    <<: *container_config
+    machine:
+      image: ubuntu-2004:202111-02
+    resource_class: medium
     steps:
       - attach_workspace:
           at: .
       - run:
+          name: Install node
+          command: |
+            nvm install 16
+            nvm use 16
+            nvm alias default 16
+      - run:
+          name: Setup Environment
+          command: cp template.env .env
+      - run:
+          name: Setup LocalStack
+          command: npm run up
+      - run:
+          name: Create Deployment Package
+          command: npm run build:localstack
+      - run:
           name: Test
           command: npm test
-      - codecov/upload:
-          file: coverage/coverage-final.json
   build:
     <<: *container_config
     steps:
@@ -81,50 +144,146 @@ jobs:
           command: npm prune --production
       - run:
           name: Compress
-          command: zip -r $CIRCLE_TAG.zip ./dist ./node_modules ./*.js
+          command: |
+            PACKAGE_NAME=${CIRCLE_TAG:-$CIRCLE_SHA1}
+            zip -r $PACKAGE_NAME.zip ./dist ./node_modules ./*.js
       - persist_to_workspace:
           root: .
           paths:
-            - $CIRCLE_TAG.zip
-  publish-dev:
+            - ./*.zip
+  publish:
     <<: *container_config
+    parameters:
+      env:
+        type: string
     steps:
       - attach_workspace:
           at: .
+      - pulumi/login
       - publish:
-          env: development
-  publish-production:
+          env: << parameters.env >>
+  deploy:
     <<: *container_config
+    parameters:
+      env:
+        type: string
     steps:
       - attach_workspace:
           at: .
-      - publish:
-          env: production
+      - run:
+          name: Todo
+          command: echo "Update to deploy."
+  deploy-infrastructure:
+    <<: *container_config
+    parameters:
+      stack:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies
+          command: |
+            cd ./infrastructure
+            npm install
+      - pulumi/login
+      - pulumi/update:
+          stack: << parameters.stack >>
+          working_directory: ./infrastructure
 
 workflows:
   version: 2
   default:
+    when:
+      and:
+        - not:
+            matches:
+              <<: *matches_non_prod_release
+        - not:
+            matches:
+              <<: *matches_prod_release
+        - not:
+            matches:
+              <<: *matches_non_prod_infra_release
+        - not:
+            matches:
+              <<: *matches_prod_infra_release
     jobs:
       - dependencies:
-          <<: *filter_any
+          <<: *dependencies_job
       - lint:
-          requires:
-            - dependencies
-          <<: *filter_any
+          <<: *lint_job
       - test:
-          requires:
-            - dependencies
-          <<: *filter_any
+          <<: *test_job
       - build:
-          requires:
-            - lint
-            - test
-          <<: *filter_any
-      - publish-dev:
+          <<: *build_job
+  non_prod_release:
+    when:
+      matches:
+        <<: *matches_non_prod_release
+    jobs:
+      - dependencies:
+          <<: *dependencies_job
+      - lint:
+          <<: *lint_job
+      - test:
+          <<: *test_job
+      - build:
+          <<: *build_job
+      - publish:
           requires:
             - build
+          context: aws-dev
+          env: dev
           <<: *filter_tags
-      - publish-production:
+      - deploy:
+          requires:
+            - publish
+          context: aws-dev
+          env: dev
+          <<: *filter_tags
+  prod_release:
+    when:
+      matches:
+        <<: *matches_prod_release
+    jobs:
+      - dependencies:
+          <<: *dependencies_job
+      - lint:
+          <<: *lint_job
+      - test:
+          <<: *test_job
+      - build:
+          <<: *build_job
+      - publish:
           requires:
             - build
+          context:
+            - aws-prod
+          env: prod
+          <<: *filter_prod_tags
+      - deploy:
+          requires:
+            - publish
+          context: aws-prod
+          env: prod
           <<: *filter_tags
+  deploy_non_prod_infra:
+    when:
+      matches:
+        <<: *matches_non_prod_infra_release
+    jobs:
+      - deploy-infrastructure:
+          context:
+            - pulumi-dev
+          stack: dev
+          <<: *filter_nonprod_infra_tags
+  deploy_prod_infra:
+    when:
+      matches:
+        <<: *matches_prod_infra_release
+    jobs:
+      - deploy-infrastructure:
+          context:
+            - pulumi-prod
+          stack: prod
+          <<: *filter_prod_infra_tags
